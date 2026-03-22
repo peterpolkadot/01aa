@@ -1,4 +1,3 @@
-// catholic-scraper.js
 const https = require("https");
 const fs = require("fs");
 
@@ -28,12 +27,14 @@ function fetchPage(letter) {
 
 function extractNames(html) {
   const names = new Set();
-  // Match saint links: <a href="saint.php?saint_id=123">St. Name</a>
-  const regex = /href="saint\.php\?saint_id=\d+"[^>]*>([^<]+)</g;
+  // Match: <a href="/saints/saint.php?saint_id=123">Name Here</a>
+  const regex = /href="\/saints\/saint\.php\?saint_id=\d+"[^>]*>([^<]+)</g;
   let match;
   while ((match = regex.exec(html)) !== null) {
     const name = match[1].trim();
-    if (name && name.length > 1) names.add(name);
+    if (name && name.length > 1 && !name.includes("Image of")) {
+      names.add(name);
+    }
   }
   return [...names];
 }
@@ -45,21 +46,16 @@ async function main() {
   for (const letter of letters) {
     try {
       const { html, status } = await fetchPage(letter);
-      console.log(`${letter}: HTTP ${status}, ${html.length} bytes`);
-
       if (status === 200) {
         const names = extractNames(html);
         names.forEach(n => allNames.add(n));
-        console.log(`  ✅ ${names.length} saints found`);
+        console.log(`${letter}: ${names.length} saints`);
       } else {
-        console.log(`  ⚠️ Skipped — status ${status}`);
+        console.log(`${letter}: HTTP ${status} — skipped`);
       }
-
-      // Small delay to be polite
       await new Promise(r => setTimeout(r, 500));
-
     } catch (e) {
-      console.error(`  ❌ ${letter} failed: ${e.message}`);
+      console.error(`${letter} failed: ${e.message}`);
     }
   }
 
