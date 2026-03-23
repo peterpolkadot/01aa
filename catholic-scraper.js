@@ -25,31 +25,34 @@ function fetchPage(letter) {
   });
 }
 
-function extractNames(html) {
-  const names = new Set();
-  // Match: <a href="/saints/saint.php?saint_id=123">Name Here</a>
-  const regex = /href="\/saints\/saint\.php\?saint_id=\d+"[^>]*>([^<]+)</g;
+function extractSaints(html) {
+  const saints = new Map();
+  // Match: href="/saints/saint.php?saint_id=123">Name Here</a>
+  const regex = /href="\/saints\/saint\.php\?saint_id=(\d+)"[^>]*>([^<]+)</g;
   let match;
   while ((match = regex.exec(html)) !== null) {
-    const name = match[1].trim();
-    if (name && name.length > 1 && !name.includes("Image of")) {
-      names.add(name);
+    const id = match[1];
+    const name = match[2].trim();
+    if (name && name.length > 1 && !name.includes("Image of") && !saints.has(name)) {
+      saints.set(name, id);
     }
   }
-  return [...names];
+  return saints;
 }
 
 async function main() {
   console.log("🚀 Starting catholic.org scraper");
-  const allNames = new Set();
+  const allSaints = new Map();
 
   for (const letter of letters) {
     try {
       const { html, status } = await fetchPage(letter);
       if (status === 200) {
-        const names = extractNames(html);
-        names.forEach(n => allNames.add(n));
-        console.log(`${letter}: ${names.length} saints`);
+        const saints = extractSaints(html);
+        saints.forEach((id, name) => {
+          if (!allSaints.has(name)) allSaints.set(name, id);
+        });
+        console.log(`${letter}: ${saints.size} saints`);
       } else {
         console.log(`${letter}: HTTP ${status} — skipped`);
       }
@@ -59,8 +62,15 @@ async function main() {
     }
   }
 
-  const sorted = [...allNames].sort();
-  const csv = "name\n" + sorted.map(n => `"${n.replace(/"/g, '""')}"`).join("\n");
+  // Write CSV with name and image_url
+  const sorted = [...allSaints.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const rows = sorted.map(([name, id]) => {
+    const safeName = name.replace(/"/g, '""');
+    const imageUrl = `https://www.catholic.org/files/images/saints/thumb_${id}.jpg`;
+    return `"${safeName}","${imageUrl}"`;
+  });
+
+  const csv = "name,image_url\n" + rows.join("\n");
   fs.writeFileSync("saints.csv", csv);
   console.log(`\n✅ Done — ${sorted.length} saints written to saints.csv`);
 }
