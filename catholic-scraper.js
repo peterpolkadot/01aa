@@ -66,7 +66,7 @@ async function main() {
   const sorted = [...allSaints.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const rows = sorted.map(([name, id]) => {
     const safeName = name.replace(/"/g, '""');
-    const imageUrl = `https://www.catholic.org/files/images/saints/thumb_${id}.jpg`;
+const imageUrl = `https://www.catholic.org/files/images/saints/${id}.jpg`;
     return `"${safeName}","${imageUrl}"`;
   });
 
